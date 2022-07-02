@@ -1,5 +1,5 @@
 ### Justin Sperry & Slav Ivanovich
-### Project 3
+### Project 4
 ##### CSCI 4448 - Summer 2022
 
 Java version - 17.3.0.1
