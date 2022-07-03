@@ -18,37 +18,39 @@ import Strategy.NegativeReinforcement;
 import Strategy.PositiveReinforcement;
 import Strategy.Training_Strategy;
 
+import java.util.ArrayList;
+
 // this is the employee class it handles the operations of the clerk and trainer
 // it also pushes some signals to the observers
 public class Employee implements Log_output, Poisson{
     String name;
-    Store store;
     int daysWorked;
 
     // initial inventory of toys is ordered in inventory class
     static boolean toysOrdered = true;
 
-    Employee(String name, Store store) {
+    ArrayList<Integer> worked_on_day = new ArrayList<>();
+
+    Employee(String name) {
         this.name = name;
-        this.store = store;
         daysWorked = 0;
     }
 
     // both types of Employees do this
-    void arriveAtStore() {
+    void arriveAtStore(Store store) {
         out(this.name + " arrives at store.");
-        new ArriveAtStoreObserver(store.logger, this.name + " arrives at store.");
+        new ArriveAtStoreObserver(store.logger, this.name + " arrives at store "+store.name);
     }
 
 }
 
 // Clerks doing their things...
 class Clerk extends Employee {
-    Clerk(String name, Store store) {
-        super(name, store);
+    Clerk(String name) {
+        super(name);
     }
 
-    void processDeliveries() {
+    void processDeliveries(Store store) {
         int total_deliveries = 0;
         out(this.name + " is checking for deliveries.");
         boolean petArrivals = false;
@@ -72,37 +74,37 @@ class Clerk extends Employee {
         new ProcessDeliveriesObserver(store.logger, total_deliveries+ " items were processed");
     }
 
-    void checkRegister() {
+    void checkRegister(Store store) {
         out(this.name + " checks: "+Format.asDollar(store.cashInRegister)+" in register.");
         if (store.cashInRegister<200) {
             out("Cash register is low on funds.");
-            this.goToBank();
+            this.goToBank(store);
         }
         new CheckRegisterObserver(store.logger, "$" + store.cashInRegister + " is in the cash register");
     }
 
-    void goToBank() {
+    void goToBank(Store store) {
         out(this.name + " gets money from the bank.");
         store.cashInRegister += 1000;
         store.cashFromBank += 1000;
-        this.checkRegister();
+        this.checkRegister(store);
         new GoToBankObserver(store.logger, "$" + store.cashInRegister + " is in the cash register after going to the bank");
     }
 
-    void doInventory() {
+    void doInventory(Store store) {
         out(this.name + " is doing inventory.");
         for (AnimalType type: AnimalType.values()) {
             int numItems = store.inventory.countPetsByType(store.inventory.pets,type);
             out(this.name + " counts "+numItems+" "+type.toString().toLowerCase()+"s");
             if (numItems == 0) {
-                this.placeAPetOrder(type);
+                this.placeAPetOrder(type, store);
             }
         }
         for (SuppliesType type: SuppliesType.values()) {
             int numItems = store.inventory.countSuppliesByType(store.inventory.supplies,type);
             out(this.name + " counts "+numItems+" "+type.toString().toLowerCase()+"s");
             if (numItems == 0) {
-                this.placeASuppliesOrder(type);
+                this.placeASuppliesOrder(type, store);
             }
         }
 
@@ -118,7 +120,7 @@ class Clerk extends Employee {
         new DoInventoryObserver(store.logger, "There is $" + (petWorth + suppliesWorth) + " worth of value in the inventory.");
     }
 
-    void placeAPetOrder(AnimalType type) {
+    void placeAPetOrder(AnimalType type, Store store) {
         out(this.name + " needs to order "+type.toString().toLowerCase()+"s");
         int total_pets_ordered = 0;
         // order 3 more of this item type
@@ -142,7 +144,7 @@ class Clerk extends Employee {
     }
 
 
-    void placeASuppliesOrder(SuppliesType type) {
+    void placeASuppliesOrder(SuppliesType type, Store store) {
         int total_supplies_ordered = 0;
         if (toysOrdered && type.equals(SuppliesType.TOYS)){
             out("Stock of TOYS is out, not ordering more.");
@@ -175,7 +177,7 @@ class Clerk extends Employee {
 
     // Little bit of a code smell here - some duplicate code in the two stages of selling a thing.
     // It's pretty simple and it's right here, so I'll leave it as is for now...
-    void openTheStore() {
+    void openTheStore(Store store) {
         // 3 - 10 customers
         int customer = 0;
         int numberOfCustomers = 2 + getPoissonRandom(3);
@@ -195,7 +197,7 @@ class Clerk extends Employee {
                     // 50% will buy from clerk
                     if (Random.rnd() > .5) {
                         String price = Format.asDollar(pet.listPrice);
-                        out("Customer is buying " + pet.name + " for " + price + " from clerk " + this.name);
+                        out("Customer is buying " + pet.name + " for " + price + " from clerk " + store.activeClerk.name);
                         soldPet = pet;
                         pet.salePrice = pet.listPrice;
                         addOnToPet(pet);
@@ -209,8 +211,7 @@ class Clerk extends Employee {
                         if (Random.rnd() > .25) {
                             double salePrice = pet.listPrice * .9;
                             String price = Format.asDollar(salePrice);
-                            String name = store.activeTrainer.name;
-                            out("Customer is buying " + pet.name + " for " + price + " from trainer " + name);
+                            out("Customer is buying " + pet.name + " for " + price + " from trainer " + store.activeTrainer.name);
                             soldPet = pet;
                             pet.salePrice = salePrice;
                             addOnToPet(pet);
@@ -244,7 +245,7 @@ class Clerk extends Employee {
                     // 50% will buy from clerk
                     if (Random.rnd() > .5) {
                         String price = Format.asDollar(suppliesItem.listPrice);
-                        out("Customer is buying " + suppliesItem.name + " for " + price + " from clerk " + this.name);
+                        out("Customer is buying " + suppliesItem.name + " for " + price + " from clerk " + store.activeClerk.name);
                         soldSuppliesItem = suppliesItem;
                         suppliesItem.salePrice = suppliesItem.listPrice;
                         suppliesItem.daySold = store.today;
@@ -257,8 +258,7 @@ class Clerk extends Employee {
                         if (Random.rnd() > .25) {
                             double salePrice = suppliesItem.listPrice * .9;
                             String price = Format.asDollar(salePrice);
-                            String name = store.activeTrainer.name;
-                            out("Customer is buying " + suppliesItem.name + " for " + price + " from trainer " + name);
+                            out("Customer is buying " + suppliesItem.name + " for " + price + " from trainer " + store.activeTrainer.name);
                             soldSuppliesItem = suppliesItem;
                             suppliesItem.salePrice = salePrice;
                             suppliesItem.daySold = store.today;
@@ -344,11 +344,11 @@ class Clerk extends Employee {
         out("Total price for " + pet.name + " is now " + Format.asDollar(pet.salePrice));
     }
 
-    void cleanTheStore(){
+    void cleanTheStore(Store store){
         out(this.name + " vacuums the store.");
     }
 
-    void leaveTheStore(){
+    void leaveTheStore(Store store){
         out(this.name + " locks up the store and leaves.");
         new LeaveStoreObserver(store.logger, this.name + " has left the store");
     }
@@ -358,8 +358,8 @@ class Trainer extends Employee implements Random{
 
     //Trainer strategy
     Training_Strategy strategy;
-    Trainer(String name, Store store, int training_strategy) {
-        super(name, store);
+    Trainer(String name, int training_strategy) {
+        super(name);
         // assign haphazard strategy
         if (training_strategy == 1){
             strategy = new Training_Strategy(new Haphazard());
@@ -379,7 +379,7 @@ class Trainer extends Employee implements Random{
     // There's some Java pickiness around moving things off a collection while you're looping through it
     // I also used the newer removeIf method that handles a bulk removal
 
-    void feedAnimals() {
+    void feedAnimals(Store store) {
         out(this.name + " is feeding the animals...");
         // Check to see if any animals get sick during feeding (5% chance)
         for (Pet pet: store.inventory.pets) {
@@ -408,7 +408,7 @@ class Trainer extends Employee implements Random{
         store.inventory.sickPets.removeIf(pet -> pet.healthy);
     }
 
-    void trainAnimals(){
+    void trainAnimals(Store store){
         out(this.name + " is training the animals...");
         // trainer trys to change housebroken attribute
         for (Pet pet: store.inventory.pets) {
@@ -431,7 +431,7 @@ class Trainer extends Employee implements Random{
         }
     }
 
-    void cleanTheStore() {
+    void cleanTheStore(Store store) {
 
         out(this.name + " cleans the cages.");
         // I'm assuming here that only the healthy animals want to escape...
@@ -448,7 +448,7 @@ class Trainer extends Employee implements Random{
             }
     }
 
-    void leaveTheStore() {
+    void leaveTheStore(Store store) {
         out(this.name + " locks up the store and leaves.");
         new LeaveStoreObserver(store.logger, this.name + " has left the store");
     }

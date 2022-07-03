@@ -14,6 +14,7 @@ public class Inventory implements Log_output {
     // I'm also just dealing with Pets in inventory, keeping a bunch of Supplies and deciding whether to use
     // Items or Pets/Supplies in your ArrayLists is for you to do...
 
+    public String name;
     public ArrayList<Pet> pets;
     public ArrayList<Pet> sickPets;
     public ArrayList<Pet> arrivingPets;
@@ -29,7 +30,8 @@ public class Inventory implements Log_output {
 
     static int suppliesNumber;
 
-    Inventory() {
+    Inventory(String name) {
+        this.name=name;
         pets = new ArrayList<>();
         arrivingPets = new ArrayList<>();
         soldPets = new ArrayList<>();

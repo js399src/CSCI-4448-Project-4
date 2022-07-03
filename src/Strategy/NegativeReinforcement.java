@@ -12,13 +12,12 @@ public class NegativeReinforcement implements Strategy{
             housebroken = false;
             System.out.println("Neg Reinforcement training method changed the housebroken trait of the pet.");
             return housebroken;
-        } else {
-            System.out.println("Neg Reinforcement training method didn't change the housebroken trait of the pet.");
         }
         // 40% chance of changing from false to true
-        if (rand <= .4 && !housebroken){
+        else if (rand <= .4 && !housebroken){
             housebroken = true;
             System.out.println("Neg Reinforcement training method changed the housebroken trait of the pet.");
+            return housebroken;
         } else {
             System.out.println("Neg Reinforcement training method didn't change the housebroken trait of the pet.");
         }

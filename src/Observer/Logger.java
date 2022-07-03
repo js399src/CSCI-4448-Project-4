@@ -39,11 +39,12 @@ public class Logger {
             } else {
                 System.out.println("File already exists.");
             }
-            FileWriter writer = new FileWriter(fileName);
+            FileWriter writer = new FileWriter(fileName, true);
             for (String item: log){
                 writer.write(item);
                 writer.write('\n');
             }
+            writer.write("**************************\n");
             writer.close();
         } catch (IOException e) {
             System.out.println("An error occurred.");

@@ -5,13 +5,12 @@
 
 public class Main {
 
-    static final int SIM_DAYS = 30;
+    static final int SIM_DAYS = 2;
 
     public static void main(String[] args) {
         // Short and to the point - instantiate objects and let them work
         Simulation sim = new Simulation();
         sim.startSim(SIM_DAYS);
-        sim.summary();
     }
 
 }

@@ -10,6 +10,8 @@ import java.util.ArrayList;
  */
 
 public class Store implements Log_output, Random {
+
+    public String name;
     public Clerk activeClerk;
     public Trainer activeTrainer;
     public double cashInRegister;
@@ -19,67 +21,82 @@ public class Store implements Log_output, Random {
 
     public Observer.Logger logger;
 
-    public Observer.Tracker tracker;
+    // tracker is static because all stores will share the same tracker
+    public static Observer.Tracker tracker;
 
-    ArrayList<Employee> clerks;
-    ArrayList<Employee> trainers;
+    static boolean employeesInitialized = false;
 
-    Store() {
+    static ArrayList<Employee> clerks = new ArrayList<>();
+
+    static ArrayList<Employee> trainers = new ArrayList<>();
+
+
+    Store(String name) {
+
+        // name the store
+        this.name = name;
+
         // initialize the store's starting inventory
-        inventory = new Inventory();
+        inventory = new Inventory(this.name);
 
         cashInRegister = 0;   // cash register is empty to begin
         cashFromBank = 0;   // no cash from bank yet
 
-        // I let the store initialize the store's staff in the constructor
-        // This would have to be reconsidered for multiple stores
-        clerks = new ArrayList<>();
-        clerks.add(new Clerk("Dante",this));
-        clerks.add(new Clerk("Randal",this));
-        clerks.add(new Clerk("Jason", this));
-        trainers = new ArrayList<>();
-        trainers.add(new Trainer("Alpa",this, 1));
-        trainers.add(new Trainer("Kirk",this, 2));
-        trainers.add(new Trainer("Ricky",this, 3));
-        tracker = new Tracker(today, "Dante", "Randal", "Jason", "Alpa", "Kirk", "Ricky");
+        // Should only be called once even if multiple stores initialized
+        initializeEmployees();
+
+    }
+
+    void initializeEmployees(){
+        if (!employeesInitialized){
+            clerks.add(new Clerk("Dante"));
+            clerks.add(new Clerk("Randal"));
+            clerks.add(new Clerk("Jason"));
+            trainers.add(new Trainer("Alpa", 1));
+            trainers.add(new Trainer("Kirk", 2));
+            trainers.add(new Trainer("Ricky", 3));
+            tracker = new Tracker(today, "Dante", "Randal", "Jason", "Alpa", "Kirk", "Ricky");
+            employeesInitialized = true;
+        } else {
+            out("Employee list already initialized");
+        }
     }
 
     void openToday(int day) {
         today = day;
         logger = new Logger(today);
-        out("Store opens today, day "+day);
+        out(name+" Store opens today, day "+day);
         activeClerk = (Clerk) getValidEmployee(clerks);
         out(activeClerk.name + " is the clerk working today.");
         activeTrainer = (Trainer) getValidEmployee(trainers);
         out(activeTrainer.name + " is the trainer working today.");
 
         // Essentially, I just have the working clerk and trainer do their things
-        activeClerk.arriveAtStore();
-        activeTrainer.arriveAtStore();
-        activeClerk.processDeliveries();
-        activeTrainer.feedAnimals();
-        activeClerk.checkRegister();
-        activeClerk.doInventory();
-        activeTrainer.trainAnimals();
-        activeClerk.openTheStore();
-        activeTrainer.cleanTheStore();
-        activeClerk.cleanTheStore();
-        activeTrainer.leaveTheStore();
-        activeClerk.leaveTheStore();
+        activeClerk.arriveAtStore(this);
+        activeTrainer.arriveAtStore(this);
+        activeClerk.processDeliveries(this);
+        activeTrainer.feedAnimals(this);
+        activeClerk.checkRegister(this);
+        activeClerk.doInventory(this);
+        activeTrainer.trainAnimals(this);
+        activeClerk.openTheStore(this);
+        activeTrainer.cleanTheStore(this);
+        activeClerk.cleanTheStore(this);
+        activeTrainer.leaveTheStore(this);
+        activeClerk.leaveTheStore(this);
 
         logger.notifyAllObservers();
         logger.writeToFile(today);
 
         tracker.notifyAllObservers();
+        tracker.clearObservers();
         tracker.printSummary(today);
     }
 
     Employee getValidEmployee(ArrayList<Employee> employees) {
         // pick a random employee from the employee list provided
         // and manage the limit on days worked
-        // I use the higher level class employee to do this,
-        // might want to consider how this would change if I wanted
-        // to keep the employee class abstract.  Hmmm...
+        // make sure employees aren't assigned to work at two different stores on same day
         Employee employee = employees.get(Random.rndFromRange(0,employees.size()-1));
         // 10% chance employee is sick and cannot work
         if (Random.rnd() <= .1) {
@@ -91,20 +108,42 @@ public class Store implements Log_output, Random {
             out("Employee " + employee.name + " is replacing them");
         }
         // if they are ok to work, set days worked on other clerks to 0
-        if (employee.daysWorked < 3) {
+        // do not set days worked to 0 if employee is working in other store
+        // add the day they are working to the employees worked_on_day attribute
+        if (employee.daysWorked < 3 && !employee.worked_on_day.contains((Integer)today)) {
+
+            // increase days worked attribute
             employee.daysWorked += 1;
+
+            // add today to their worked_on_day so other store does not assign same employee
+            employee.worked_on_day.add((Integer)today);
+
             for (Employee other: employees) {
-                if (other != employee) other.daysWorked = 0; // they had a day off, so clear their counter
+                // if other employees aren't the chosen employee to work
+                // and they aren't working in the other store
+                if ((other != employee) && !other.worked_on_day.contains((Integer)today))
+                    other.daysWorked = 0; // they had a day off, so clear their counter
             }
         }
-        // if they are not ok to work, set their days worked to 0 and get another clerk
-        else {
+        // if they have worked more than 3 days in a row, set their days worked to 0 and get another clerk
+        else if (employee.daysWorked >= 3){
             out(employee.name+" has worked maximum of 3 days in a row.");
             employee.daysWorked = 0;   // they can't work, get another clerk
             for (Employee other: employees) {
-                if (other != employee) {
+                if (other != employee && !other.worked_on_day.contains((Integer)today) && other.daysWorked<3) {
                     employee = other;
-                    break;
+                    return employee;
+                }
+            }
+        }
+        // check if employee has already worked a day, if they have make sure they are not assigned
+        //  to work the same day at a different store
+        else if (employee.worked_on_day.contains((Integer)today)){
+            out(employee.name+" is already working for the other store");
+            for (Employee other: employees) {
+                if (other != employee && !other.worked_on_day.contains((Integer)today) && other.daysWorked<3) {
+                    employee = other;
+                    return employee;
                 }
             }
         }

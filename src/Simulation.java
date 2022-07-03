@@ -9,12 +9,14 @@
  */
 
 public class Simulation implements Log_output {
-    Store store;
+    Store northStore;
+    Store southStore;
     int dayCounter;
 
     Simulation() {
         dayCounter = 0;
-        store = new Store();
+        northStore = new Store("North");
+        southStore = new Store("South");
     }
 
     void startSim(int days) {
@@ -22,14 +24,20 @@ public class Simulation implements Log_output {
         for (day = 1; day <= days; day++) {
             out(" ");
             out("*** Simulation day "+day+" ***");
-            store.openToday(day);
+            //
+            northStore.openToday(day);
+            southStore.openToday(day);
+
         }
+        out("***Summary of Simulation for North Store ***");
+        summary(northStore);
+        out("***Summary of Simulation for South Store ***");
+        summary(southStore);
     }
 
-    // Summary is left as an exercise to the reader...
-    void summary() {
+    // Print out summary for each store
+    void summary(Store store) {
         out("");
-        out("***Summary of Simulation***");
 
         // print out items left in inventory + total value (purchase price)
         double remainingValue = 0.0;

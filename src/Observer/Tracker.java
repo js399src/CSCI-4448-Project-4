@@ -31,6 +31,10 @@ public class Tracker  {
         }
     }
 
+    public void clearObservers() {
+        observers.removeAll(observers);
+    }
+
     public Tracker(int Day, String name1, String name2, String name3,
                    String name4, String name5, String name6){
         this.day = Day;
